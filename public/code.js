@@ -8,7 +8,7 @@ async function load() {
     return;
   }
   try {
-    const r = await fetch(`/api/links/${code}`);
+    const r = await fetch(`https://tinylink-liul.onrender.com/api/links/${code}`);
     if (r.status === 404) {
       content.innerHTML = '<p>Not found</p>';
       return;

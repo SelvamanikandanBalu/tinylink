@@ -1,4 +1,5 @@
 const BASE = (window.BASE_URL || '') || (window.location.origin);
+const API = "https://tinylink-liul.onrender.com";
 const createForm = document.getElementById('createForm');
 const targetInput = document.getElementById('target');
 const codeInput = document.getElementById('code');
@@ -14,7 +15,7 @@ const healthSpan = document.getElementById('health');
 
 async function fetchHealth() {
   try {
-    const r = await fetch('/healthz');
+    const r = await fetch(`${API}/healthz`);
     const j = await r.json();
     healthSpan.textContent = j.ok ? 'OK' : 'NO';
   } catch (e) {
@@ -27,7 +28,7 @@ async function loadLinks() {
   linksTable.classList.add('hidden');
   empty.classList.add('hidden');
   try {
-    const r = await fetch('/api/links');
+    const r = await fetch(`${API}/api/links`);
     const rows = await r.json();
     tbody.innerHTML = '';
     if (!rows.length) {
@@ -57,14 +58,14 @@ async function loadLinks() {
         const viewBtn = document.createElement('button');
         viewBtn.textContent = 'Stats';
         viewBtn.className = 'viewBtn';
-        viewBtn.onclick = () => window.open(`/stats.html?c=${row.code}`, '_blank');
+        viewBtn.onclick = () => window.open(`${API}/stats.html?c=${row.code}`, '_blank');
 
         const delBtn = document.createElement('button');
         delBtn.textContent = 'Delete';
         delBtn.className = 'delBtn';
         delBtn.onclick = async () => {
           if (!confirm('Delete this link?')) return;
-          const res = await fetch(`/api/links/${row.code}`, { method: 'DELETE' });
+          const res = await fetch(`${API}/api/links/${row.code}`, { method: 'DELETE' });
           if (res.ok) loadLinks();
           else alert('Delete failed');
         };
@@ -95,7 +96,7 @@ createForm.addEventListener('submit', async (ev) => {
   try {
     const payload = { target: targetInput.value.trim() };
     if (codeInput.value.trim()) payload.code = codeInput.value.trim();
-    const res = await fetch('/api/links', {
+    const res = await fetch(`${API}/api/links`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

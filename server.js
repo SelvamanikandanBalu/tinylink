@@ -1,4 +1,5 @@
 require('dotenv').config();
+const cors = require('cors');
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
@@ -10,8 +11,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middlewares
+app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public'))); // serves index.html, css, js
+
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 // Healthcheck - required by autograder
 app.get('/healthz', (req, res) => {
@@ -44,7 +51,7 @@ app.get('/:code', async (req, res) => {
     const target = updateRes.rows[0].target;
 
     // Redirect with 302
-    return res.redirect(302, target);
+    return res.redirect(target);
   } catch (err) {
     console.error('Redirect error', err);
     return res.status(500).json({ error: 'Internal server error' });
