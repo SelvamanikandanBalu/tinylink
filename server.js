@@ -1,4 +1,4 @@
-require('dotenv').config();
+import 'dotenv/config';
 import { pool, query, getClient } from "./src/db.js";
 
 const cors = require('cors');
