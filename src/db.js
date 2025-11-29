@@ -1,13 +1,12 @@
-require('dotenv').config();
-const { Pool } = require('pg');
+import 'dotenv/config';
+import pkg from "pg";
 
-const pool = new Pool({
+const { Pool } = pkg;
+
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Optional: SSL settings if your DB provider requires it. Uncomment if needed:
-  // ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false }
 });
 
-module.exports = {
-  query: (text, params) => pool.query(text, params),
-  getClient: () => pool.connect()
-};
+export const query = (text, params) => pool.query(text, params);
+export const getClient = () => pool.connect();
