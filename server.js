@@ -1,13 +1,16 @@
 import 'dotenv/config';
-import { pool, query, getClient } from "./src/db.js";
+import express from "express";
+import cors from "cors";
+import path from "path";
+import bodyParser from "body-parser";
+import { fileURLToPath } from "url";
 
-const cors = require('cors');
-const express = require('express');
-const path = require('path');
-const bodyParser = require('body-parser');
+import linksRouter from "./routes/links.js";
+import { pool, query } from "./src/db.js";
 
-const linksRouter = require('./routes/links'); // will create in step 5
-const db = require('./src/db');
+// Needed because __dirname does not exist in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,28 +18,27 @@ const PORT = process.env.PORT || 3000;
 // Middlewares
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public'))); // serves index.html, css, js
+app.use(express.static(path.join(__dirname, "public")));
 
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
+// Create table if not exists
 async function initDatabase() {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS links (
-  code VARCHAR(8) PRIMARY KEY,
-  target TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  total_clicks BIGINT DEFAULT 0,
-  last_clicked TIMESTAMPTZ,
-  -- we will hard-delete rows on deletion to make redirect 404 behavior simple
-  -- deleted boolean is not required for this assignment
-  CHECK (char_length(code) BETWEEN 6 AND 8)
-);
+        code VARCHAR(8) PRIMARY KEY,
+        target TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        total_clicks BIGINT DEFAULT 0,
+        last_clicked TIMESTAMPTZ,
+        CHECK (char_length(code) BETWEEN 6 AND 8)
+      );
 
-CREATE INDEX IF NOT EXISTS idx_links_target ON links (target);
+      CREATE INDEX IF NOT EXISTS idx_links_target ON links(target);
     `);
     console.log("✔ Database table ready");
   } catch (err) {
@@ -44,53 +46,56 @@ CREATE INDEX IF NOT EXISTS idx_links_target ON links (target);
   }
 }
 
-// Healthcheck - required by autograder
-app.get('/healthz', (req, res) => {
-  res.json({ ok: true, version: '1.0' });
+// Health check
+app.get("/healthz", (req, res) => {
+  res.json({ ok: true, version: "1.0" });
 });
 
 // API routes
-app.use('/api/links', linksRouter);
+app.use("/api/links", linksRouter);
 
-// Redirect route (/:code) — must come AFTER /api and /healthz and static
-app.get('/:code', async (req, res) => {
+// Redirect handler
+app.get("/:code", async (req, res) => {
   const code = req.params.code;
+
   try {
-    // Find the link
-    const findQ = 'SELECT target, total_clicks FROM links WHERE code = $1';
-    const findRes = await db.query(findQ, [code]);
+    const findRes = await query("SELECT target FROM links WHERE code = $1", [
+      code,
+    ]);
+
     if (findRes.rowCount === 0) {
-      return res.status(404).send('Not found');
+      return res.status(404).send("Not found");
     }
 
-    // Atomic update: increment clicks and set last_clicked, and fetch target
-    // Using RETURNING so we avoid racing between SELECT and UPDATE
-    const updateQ = `
+    const updateRes = await query(
+      `
       UPDATE links
       SET total_clicks = total_clicks + 1, last_clicked = now()
       WHERE code = $1
       RETURNING target;
-    `;
-    const updateRes = await db.query(updateQ, [code]);
-    const target = updateRes.rows[0].target;
+    `,
+      [code]
+    );
 
-    // Redirect with 302
+    const target = updateRes.rows[0].target;
     return res.redirect(target);
   } catch (err) {
-    console.error('Redirect error', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error("Redirect error", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-app.get('/stats.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'stats.html'));
+// Stats page
+app.get("/stats.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "stats.html"));
 });
 
-// Fallback 404 for anything else not served
+// 404 fallback
 app.use((req, res) => {
-  res.status(404).send('Not found');
+  res.status(404).send("Not found");
 });
 
+// Initialize DB and start server
 await initDatabase();
 
 app.listen(PORT, () => {
