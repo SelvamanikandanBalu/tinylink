@@ -74,7 +74,9 @@ router.post("/", async (req, res) => {
       RETURNING code, target, created_at, total_clicks, last_clicked;
     `;
     const insertRes = await query(insertQ, [usedCode, target]);
-    return res.status(201).json(insertRes.rows[0]);
+    const data = insertRes.rows[0];
+    data.short_url = `${process.env.BASE_URL}/${data.code}`;
+    return res.status(201).json(data);
   } catch (err) {
     console.error("Insert error", err);
     return res.status(500).json({ error: "Internal server error" });
