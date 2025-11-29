@@ -1,5 +1,5 @@
 require('dotenv').config();
-import { pool } from "./db.js";
+import { pool } from "./src/db.js";
 const cors = require('cors');
 const express = require('express');
 const path = require('path');
