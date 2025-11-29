@@ -1,4 +1,5 @@
 require('dotenv').config();
+import { pool } from "./db.js";
 const cors = require('cors');
 const express = require('express');
 const path = require('path');
@@ -19,6 +20,28 @@ app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
+
+async function initDatabase() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS links (
+  code VARCHAR(8) PRIMARY KEY,
+  target TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  total_clicks BIGINT DEFAULT 0,
+  last_clicked TIMESTAMPTZ,
+  -- we will hard-delete rows on deletion to make redirect 404 behavior simple
+  -- deleted boolean is not required for this assignment
+  CHECK (char_length(code) BETWEEN 6 AND 8)
+);
+
+CREATE INDEX IF NOT EXISTS idx_links_target ON links (target);
+    `);
+    console.log("✔ Database table ready");
+  } catch (err) {
+    console.error("❌ Error creating table:", err);
+  }
+}
 
 // Healthcheck - required by autograder
 app.get('/healthz', (req, res) => {
@@ -66,6 +89,8 @@ app.get('/stats.html', (req, res) => {
 app.use((req, res) => {
   res.status(404).send('Not found');
 });
+
+await initDatabase();
 
 app.listen(PORT, () => {
   console.log(`TinyLink server listening on port ${PORT}`);
